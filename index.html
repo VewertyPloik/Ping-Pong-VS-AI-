@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+  <title>Ping Pong vs AI</title>
+  <style>
+    body {
+      background: black;
+      color: white;
+      text-align: center;
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+
+```
+#homeScreen, #statsScreen, #shopScreen, #settingsScreen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+#homeScreen h1, #statsScreen h1, #shopScreen h1, #settingsScreen h1 {
+  font-size: 48px;
+  margin-bottom: 30px;
+}
+
+button {
+  padding: 15px 30px;
+  font-size: 24px;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  background: white;
+  color: black;
+  transition: background 0.2s;
+  margin-top: 20px;
+}
+
+button:hover {
+  background: #ddd;
+}
+
+.difficulty-option {
+  font-size: 20px;
+  margin: 5px 10px;
+  cursor: pointer;
+}
+
+canvas {
+  display: none;
+  background: black;
+  margin: auto;
+  display: block;
+  border: 4px solid blue;
+}
+
+#controls {
+  display: none;
+  margin-top: 10px;
+}
+
+.arrow {
+  font-size: 40px;
+  padding: 10px 20px;
+  margin: 0 10px;
+  background: white;
+  color: black;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+
+#statsScreen p, #shopScreen p, #settingsScreen p {
+  font-size: 24px;
+  margin: 10px 0;
+}
+
+.ball-swatch {
+  display: inline-block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  margin: 0 10px 10px 10px;
+  vertical-align: middle;
+  border: 2px solid white;
+}
+
+.selected {
+  border: 4px solid yellow !important;
+}
+
+.itemRow {
+  margin-bottom: 15px;
+}
+
+label {
+  cursor: pointer;
+}
+```
+
+  </style>
+</head>
+<body>
+
+  <!-- Home Screen -->
+
+  <div id="homeScreen">
+    <h1>Ping Pong vs AI</h1>
+    <div>
+      <label class="difficulty-option">
+        <input type="radio" name="difficulty" value="beginner" checked> Beginner
+      </label>
+      <label class="difficulty-option">
+        <input type="radio" name="difficulty" value="normal"> Normal
+      </label>
+      <label class="difficulty-option">
+        <input ty
