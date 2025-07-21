@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ping Pong vs AI</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: black;
+      color: white;
+      text-align: center;
+    }
+
+    #homeScreen, #gameCanvas, #shopScreen, #pauseScreen, #settingsScreen {
+      display: none;
+    }
+
+    .screen {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    button {
+      margin: 10px;
+      padding: 15px 30px;
+      font-size: 20px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+    }
+
+    canvas {
+      background: black;
+      margin-top: 20px;
+    }
+
+    #credit {
+      margin-top: 10px;
+      font-size: 16px;
+      color: white;
+    }
+
+    #scoreBoard {
+      margin-top: 10px;
+    }
+
+    .shop-item {
+      margin: 10px;
+    }
+
+    .selected {
+      border: 3px solid yellow;
+    }
+
+  </style>
+</head>
+<body>
+
+  <div id="homeScreen" class="screen">
+    <h1>Ping Pong vs AI</h1>
+    <button onclick="startGame('beginner')">Play Beginner</button>
+    <button onclick="startGame('normal')">Play Normal</button>
+    <button onclick="startGame('hard')">Play Hard</button>
+    <button onclick="openShop()">Shop</button>
+    <button onclick="openSettings()">Settings</button>
+    <div id="stats"></div>
+  </div>
+
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <div id="credit">Made By Vewerty Ploik</div>
+
+  <div id="shopScreen" class="screen">
+    <h2>Ping Pong Ball Shop</h2>
+    <div id="shopItems"></div>
+    <button onclick="goHome()">Back to Home</button>
+  </div>
+
+  <div id="pauseScreen" class="screen">
+    <h2>Game Paused</h2>
+    <button onclick="resumeGame()">Resume</button>
+    <button onclick="goHome()">Home</button>
+  </div>
+
+  <div id="settingsScreen" class="screen">
+    <h2>Settings</h2>
+    <button onclick="toggleSound()">Toggle Sound: <span id="soundStatus"></span></button>
+    <button onclick="resetGame()">Reset Game</button>
+    <button onclick="goHome()">Back</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const credit = document.getElementById("credit");
+    const screens = {
+      home: document.getElementById("homeScreen"),
+      shop: document.getElementById("shopScreen"),
+      pause: document.getElementById("pauseScreen"),
+      settings: document.getElementById("settingsScreen")
+    };
+
+    const sound = new AudioContext();
+    let soundEnabled = JSON.parse(localStorage.getItem("sound")) ?? true;
+
+    let coins = JSON.parse(localStorage.getItem("coins")) || 0;
+    let wins = JSON.parse(localStorage.getItem("wins")) || { beginner: 0, normal: 0, hard: 0 };
+    let unlockedBalls = JSON.parse(localStorage.getItem("unlockedBalls")) || ["white"];
+    let selectedBall = localStorage.getItem("selectedBall") || "white";
+
+    const balls = {
+      white: { cost: 0, color: "white" },
+      red: { cost: 10, color: "red" },
+      gold: { cost: 25, color: "gold" },
+      monster: { cost: 50, color: "#8A2BE2" }
+    };
+
+    let game = {}, interval, paused = false;
+
+    function showScreen(name) {
+      Object.values(screens).forEach(s => s.style.display = "none");
+      canvas.style.display = name === "game" ? "block" : "none";
+      credit.style.display = name === "game" ? "block" : "none";
+      if (screens[name]) screens[name].style.display = "flex";
+    }
+
+    function goHome() {
+      showScreen("home");
+      updateStats();
+    }
+
+    function openShop() {
+      showScreen("shop");
+      const shop = document.getElementById("shopItems");
+      shop.innerHTML = "";
+      for (let ball in balls) {
+        const item = balls[ball];
+        const div = document.createElement("div");
+        div.className = "shop-item";
+        div.innerHTML = `
+          <button onclick="selectBall('${ball}')" class="${selectedBall === ball ? 'selected' : ''}">
+            ${ball} - ${unlockedBalls.includes(ball) ? "Owned" : item.cost + " coins"}
+          </button>
+        `;
+        shop.appendChild(div);
+      }
+    }
+
+    function selectBall(ball) {
+      if (!unlockedBalls.includes(ball)) {
+        if (coins >= balls[ball].cost) {
+          coins -= balls[ball].cost;
+          unlockedBalls.push(ball);
+        } else return;
+      }
+      selectedBall = ball;
+      save();
+      openShop();
+    }
+
+    function toggleSound() {
+      soundEnabled = !soundEnabled;
+      save();
+      document.getElementById("soundStatus").innerText = soundEnabled ? "ON" : "OFF";
+    }
+
+    function openSettings() {
+      showScreen("settings");
+      document.getElementById("soundStatus").innerText = soundEnabled ? "ON" : "OFF";
+    }
+
+    function resetGame() {
+      localStorage.clear();
+      location.reload();
+    }
+
+    function updateStats() {
+      document.getElementById("stats").innerText = `
+        Wins - Beginner: ${wins.beginner} | Normal: ${wins.normal} | Hard: ${wins.hard}
+        | Coins: ${coins}
+      `;
+    }
+
+    function startGame(mode) {
+      const speeds = { beginner: 4, normal: 5, hard: 6.25 };
+      game = {
+        player: { x: 0, y: 250, score: 0 },
+        ai: { x: canvas.width - 10, y: 250, score: 0 },
+        ball: {
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          r: 10,
+          speedX: speeds[mode],
+          speedY: 3
+        },
+        mode,
+        paused: false
+      };
+
+      document.addEventListener("keydown", e => {
+        if (e.key === "ArrowUp") game.player.y -= 30;
+        if (e.key === "ArrowDown") game.player.y += 30;
+        if (e.key === "Escape") pauseGame();
+      });
+
+      showScreen("game");
+      loop();
+    }
+
+    function pauseGame() {
+      paused = true;
+      cancelAnimationFrame(interval);
+      showScreen("pause");
+    }
+
+    function resumeGame() {
+      paused = false;
+      showScreen("game");
+      loop();
+    }
+
+    function save() {
+      localStorage.setItem("coins", JSON.stringify(coins));
+      localStorage.setItem("wins", JSON.stringify(wins));
+      localStorage.setItem("unlockedBalls", JSON.stringify(unlockedBalls));
+      localStorage.setItem("selectedBall", selectedBall);
+      localStorage.setItem("sound", soundEnabled);
+    }
+
+    function playSound() {
+      if (!soundEnabled) return;
+      const osc = sound.createOscillator();
+      const gain = sound.createGain();
+      osc.connect(gain);
+      gain.connect(sound.destination);
+      osc.frequency.value = 400;
+      osc.start();
+      osc.stop(sound.currentTime + 0.1);
+    }
+
+    function loop() {
+      if (paused) return;
+      const { player, ai, ball, mode } = game;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Move ball
+      ball.x += ball.speedX;
+      ball.y += ball.speedY;
+
+      // Wall bounce
+      if (ball.y - ball.r < 0 || ball.y + ball.r > canvas.height) {
+        ball.speedY *= -1;
+      }
+
+      // Player paddle
+      if (
+        ball.x - ball.r < player.x + 10 &&
+        ball.y > player.y &&
+        ball.y < player.y + 150
+      ) {
+        ball.speedX *= -1.1;
+        ball.x = player.x + 10 + ball.r;
+        playSound();
+      }
+
+      // AI paddle
+      if (
+        ball.x + ball.r > ai.x &&
+        ball.y > ai.y &&
+        ball.y < ai.y + 100
+      ) {
+        ball.speedX *= -1;
+        ball.x = ai.x - ball.r;
+        playSound();
+      }
+
+      // AI movement
+      const center = ai.y + 50;
+      if (center < ball.y - 35) ai.y += mode === "hard" ? 6 : mode === "normal" ? 4 : 2;
+      else if (center > ball.y + 35) ai.y -= mode === "hard" ? 6 : mode === "normal" ? 4 : 2;
+
+      // Score
+      if (ball.x < 0) {
+        ai.score++;
+        ball.x = canvas.width / 2;
+        ball.speedX = -Math.abs(ball.speedX);
+      }
+      if (ball.x > canvas.width) {
+        player.score++;
+        ball.x = canvas.width / 2;
+        ball.speedX = Math.abs(ball.speedX);
+      }
+
+      // Win
+      if (player.score >= 5 || ai.score >= 5) {
+        if (player.score > ai.score) {
+          wins[mode]++;
+          coins += mode === "beginner" ? 1 : mode === "normal" ? 3 : 5;
+          save();
+        }
+        goHome();
+        return;
+      }
+
+      // Draw
+      ctx.fillStyle = "blue";
+      ctx.fillRect(0, 0, canvas.width, 5);
+      ctx.fillRect(0, canvas.height - 5, canvas.width, 5);
+
+      ctx.fillStyle = "white";
+      ctx.fillRect(player.x, player.y, 10, 150);
+      ctx.fillRect(ai.x, ai.y, 10, 100);
+
+      ctx.fillStyle = balls[selectedBall].color;
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.font = "30px Arial";
+      ctx.fillStyle = "white";
+      ctx.fillText(player.score, 100, 50);
+      ctx.fillText(ai.score, canvas.width - 130, 50);
+
+      interval = requestAnimationFrame(loop);
+    }
+
+    // Start
+    goHome();
+  </script>
+</body>
+</html>
