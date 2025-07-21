@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Ping Pong vs AI</title>
+  <style>
+    body {
+      background: black;
+      color: white;
+      text-align: center;
+      margin: 0;
+      font-family: Arial, sans-serif;
+    }
+
+    #homeScreen, #statsScreen, #shopScreen, #settingsScreen {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #homeScreen h1, #statsScreen h1, #shopScreen h1, #settingsScreen h1 {
+      font-size: 48px;
+      margin-bottom: 30px;
+    }
+
+    button {
+      padding: 15px 30px;
+      font-size: 24px;
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      background: white;
+      color: black;
+      transition: background 0.2s;
+      margin-top: 20px;
+    }
+
+    button:hover {
+      background: #ddd;
+    }
+
+    .difficulty-option {
+      font-size: 20px;
+      margin: 5px 10px;
+      cursor: pointer;
+    }
+
+    canvas {
+      display: none;
+      background: black;
+      margin: auto;
+      display: block;
+      border: 4px solid blue;
+    }
+
+    #controls {
+      display: none;
+      margin-top: 10px;
+    }
+
+    .arrow {
+      font-size: 40px;
+      padding: 10px 20px;
+      margin: 0 10px;
+      background: white;
+      color: black;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    #statsScreen p, #shopScreen p, #settingsScreen p {
+      font-size: 24px;
+      margin: 10px 0;
+    }
+
+    .ball-swatch {
+      display: inline-block;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      margin: 0 10px 10px 10px;
+      vertical-align: middle;
+      border: 2px solid white;
+    }
+
+    .selected {
+      border: 4px solid yellow !important;
+    }
+
+    .itemRow {
+      margin-bottom: 15px;
+    }
+
+    label {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Home Screen -->
+  <div id="homeScreen">
+    <h1>Ping Pong vs AI</h1>
+    <div>
+      <label class="difficulty-option">
+        <input type="radio" name="difficulty" value="beginner" checked> Beginner
+      </label>
+      <label class="difficulty-option">
+        <input type="radio" name="difficulty" value="normal"> Normal
+      </label>
+      <label class="difficulty-option">
+        <input type="radio" name="difficulty" value="hard"> Hard
+      </label>
+    </div>
+    <button id="playButton">Play Game</button>
+    <button id="shopButton">Ball Shop</button>
+    <button id="statsButton">Stats</button>
+    <button id="settingsButton">Settings</button>
+    <p>Coins: <span id="coinCount">0</span></p>
+  </div>
+
+  <!-- Stats Screen -->
+  <div id="statsScreen" style="display:none;">
+    <h1>Stats</h1>
+    <p id="beginnerWins">Beginner Wins: 0</p>
+    <p id="normalWins">Normal Wins: 0</p>
+    <p id="hardWins">Hard Wins: 0</p>
+    <button id="backToHomeFromStatsBtn">Back to Home</button>
+  </div>
+
+  <!-- Shop Screen -->
+  <div id="shopScreen" style="display:none;">
+    <h1>Ball Shop</h1>
+    <p>Coins: <span id="shopCoinCount">0</span></p>
+    <div class="itemRow">
+      <span class="ball-swatch" style="background:white;" id="ball-white"></span>
+      Classic White
+      <button class="selectButton" data-ball="white">Select</button>
+    </div>
+    <div class="itemRow">
+      <span class="ball-swatch" style="background:red;" id="ball-red"></span>
+      Red Ball (10 coins)
+      <button class="buyButton" data-ball="red">Buy</button>
+      <button class="selectButton" data-ball="red" style="display:none;">Select</button>
+    </div>
+    <div class="itemRow">
+      <span class="ball-swatch" style="background:gold;" id="ball-gold"></span>
+      Gold Ball (25 coins)
+      <button class="buyButton" data-ball="gold">Buy</button>
+      <button class="selectButton" data-ball="gold" style="display:none;">Select</button>
+    </div>
+    <div class="itemRow">
+      <span class="ball-swatch" style="background:#39FF14; box-shadow: 0 0 15px #39FF14;" id="ball-monster"></span>
+      Monster Ball (50 coins)
+      <button class="buyButton" data-ball="monster">Buy</button>
+      <button class="selectButton" data-ball="monster" style="display:none;">Select</button>
+    </div>
+    <button id="backToHomeFromShopBtn">Back to Home</button>
+  </div>
+
+  <!-- Settings Screen -->
+  <div id="settingsScreen" style="display:none;">
+    <h1>Settings</h1>
+    <button id="resetProgressBtn">Reset Progress</button>
+    <div style="margin-top:20px;">
+      <label>
+        <input type="checkbox" id="soundToggle">
+        Sound Effects
+      </label>
+    </div>
+    <button id="backToHomeFromSettingsBtn" style="margin-top:30px;">Back to Home</button>
+  </div>
+
+  <!-- Game Canvas -->
+  <canvas id="gameCanvas" width="800" height="700"></canvas>
+
+  <!-- Controls -->
+  <div id="controls">
+    <button class="arrow" id="upBtn">⬆️</button>
+    <button class="arrow" id="downBtn">⬇️</button>
+  </div>
+
+<script>
+  // Saved data vars
+  let beginnerWins = 0;
+  let normalWins = 0;
+  let hardWins = 0;
+  let coins = 0;
+  let ownedBalls = ["white"];
+  let selectedBall = "white";
+
+  // Sound on/off flag
+  let soundOn = true;
+
+  // Elements
+  const homeScreen = document.getElementById("homeScreen");
+  const statsScreen = document.getElementById("statsScreen");
+  const shopScreen = document.getElementById("shopScreen");
+  const settingsScreen = document.getElementById("settingsScreen");
+
+  const playButton = document.getElementById("playButton");
+  const shopButton = document.getElementById("shopButton");
+  const statsButton = document.getElementById("statsButton");
+  const settingsButton = document.getElementById("settingsButton");
+
+  const backToHomeFromStatsBtn = document.getElementById("backToHomeFromStatsBtn");
+  const backToHomeFromShopBtn = document.getElementById("backToHomeFromShopBtn");
+  const backToHomeFromSettingsBtn = document.getElementById("backToHomeFromSettingsBtn");
+
+  const resetProgressBtn = document.getElementById("resetProgressBtn");
+  const soundToggle = document.getElementById("soundToggle");
+
+  const canvas = document.getElementById("gameCanvas");
+  const ctx = canvas.getContext("2d");
+
+  const upBtn = document.getElementById("upBtn");
+  const downBtn = document.getElementById("downBtn");
+  const controls = document.getElementById("controls");
+
+  const coinCountDisplay = document.getElementById("coinCount");
+  const shopCoinCountDisplay = document.getElementById("shopCoinCount");
+
+  const beginnerWinsDisplay = document.getElementById("beginnerWins");
+  const normalWinsDisplay = document.getElementById("normalWins");
+  const hardWinsDisplay = document.getElementById("hardWins");
+
+  // Load saved data or set defaults
+  function loadGameData() {
+    const saved = localStorage.getItem("pingpongData");
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        beginnerWins = data.beginnerWins || 0;
+        normalWins = data.normalWins || 0;
+        hardWins = data.hardWins || 0;
+        coins = data.coins || 0;
+        ownedBalls = data.ownedBalls && data.ownedBalls.length ? data.ownedBalls : ["white"];
+        selectedBall = data.selectedBall || "white";
+      } catch (e) {
+        beginnerWins = 0;
+        normalWins = 0;
+        hardWins = 0;
+        coins = 0;
+        ownedBalls = ["white"];
+        selectedBall = "white";
+      }
+    } else {
+      beginnerWins = 0;
+      normalWins = 0;
+      hardWins = 0;
+      coins = 0;
+      ownedBalls = ["white"];
+      selectedBall = "white";
+    }
+  }
+
+  // Save current data to localStorage
+  function saveGameData() {
+    const data = {
+      beginnerWins,
+      normalWins,
+      hardWins,
+      coins,
+      ownedBalls,
+      selectedBall
+    };
+    localStorage.setItem("pingpongData", JSON.stringify(data));
+  }
+
+  // Load sound setting from localStorage
+  function loadSoundSetting() {
+    const saved = localStorage.getItem("pingpongSoundOn");
+    soundOn = saved === null ? true : (saved === "true");
+    soundToggle.checked = soundOn;
+  }
+
+  // Save sound setting to localStorage
+  function saveSoundSetting() {
+    localStorage.setItem("pingpongSoundOn", soundOn);
+  }
+
+  // Utility function to update coin displays
+  function updateCoinDisplays() {
+    coinCountDisplay.textContent = coins;
+    shopCoinCountDisplay.textContent = coins;
+  }
+
+  // Update buttons display in shop for ownership and selection
+  function updateShopButtons() {
+    const balls = ["white", "red", "gold", "monster"];
+    balls.forEach(ball => {
+      const buyBtn = document.querySelector(`.buyButton[data-ball="${ball}"]`);
+      const selectBtn = document.querySelector(`.selectButton[data-ball="${ball}"]`);
+      const swatch = document.getElementById(`ball-${ball}`);
+
+      if (ownedBalls.includes(ball)) {
+        if (buyBtn) buyBtn.style.display = "none";
+        if (selectBtn) selectBtn.style.display = "inline-block";
+      } else {
+        if (buyBtn) buyBtn.style.display = "inline-block";
+        if (selectBtn) selectBtn.style.display = "none";
+      }
+
+      // Highlight selected ball
+      if (selectedBall === ball) {
+        swatch.classList.add("selected");
+        if (selectBtn) selectBtn.disabled = true;
+      } else {
+        swatch.classList.remove("selected");
+        if (selectBtn) selectBtn.disabled = false;
+      }
+    });
+  }
+
+  // Initial load
+  loadGameData();
+  loadSoundSetting();
+  updateCoinDisplays();
+  beginnerWinsDisplay.textContent = `Beginner Wins: ${beginnerWins}`;
+  normalWinsDisplay.textContent = `Normal Wins: ${normalWins}`;
+  hardWinsDisplay.textContent = `Hard Wins: ${hardWins}`;
+  updateShopButtons();
+
+  // Navigation buttons
+  shopButton.addEventListener("click", () => {
+    homeScreen.style.display = "none";
+    shopScreen.style.display = "flex";
+    updateShopButtons();
+    updateCoinDisplays();
+  });
+
+  statsButton.addEventListener("click", () => {
+    homeScreen.style.display = "none";
+    statsScreen.style.display = "flex";
+    beginnerWinsDisplay.textContent = `Beginner Wins: ${beginnerWins}`;
+    normalWinsDisplay.textContent = `Normal Wins: ${normalWins}`;
+    hardWinsDisplay.textContent = `Hard Wins: ${hardWins}`;
+  });
+
+  settingsButton.addEventListener("click", () => {
+    homeScreen.style.display = "none";
+    settingsScreen.style.display = "flex";
+    soundToggle.checked = soundOn;
+  });
+
+  backToHomeFromStatsBtn.addEventListener("click", () => {
+    statsScreen.style.display = "none";
+    homeScreen.style.display = "flex";
+    updateCoinDisplays();
+  });
+
+  backToHomeFromShopBtn.addEventListener("click", () => {
+    shopScreen.style.display = "none";
+    homeScreen.style.display = "flex";
+    updateCoinDisplays();
+  });
+
+  backToHomeFromSettingsBtn.addEventListener("click", () => {
+    settingsScreen.style.display = "none";
+    homeScreen.style.display = "flex";
+  });
+
+  // Buy buttons
+  document.querySelectorAll(".buyButton").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ball = btn.getAttribute("data-ball");
+      let cost = 0;
+      if (ball === "red") cost = 10;
+      else if (ball === "gold") cost = 25;
+      else if (ball === "monster") cost = 50;
+
+      if (coins >= cost) {
+        coins -= cost;
+        if (!ownedBalls.includes(ball)) ownedBalls.push(ball);
+        alert(`You bought the ${ball} ball!`);
+        updateCoinDisplays();
+        updateShopButtons();
+        saveGameData();
+      } else {
+        alert("Not enough coins!");
+      }
+    });
+  });
+
+  // Select buttons
+  document.querySelectorAll(".selectButton").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const ball = btn.getAttribute("data-ball");
+      if (ownedBalls.includes(ball)) {
+        selectedBall = ball;
+        updateShopButtons();
+        saveGameData();
+      }
+    });
+  });
+
+  // Reset progress
+  resetProgressBtn.addEventListener("click", () => {
+    if (confirm("Are you sure you want to reset all progress? This cannot be undone.")) {
+      localStorage.removeItem("pingpongData");
+      coins = 0;
+      beginnerWins = 0;
+      normalWins = 0;
+      hardWins = 0;
+      ownedBalls = ["white"];
+      selectedBall = "white";
+      saveGameData();
+      updateCoinDisplays();
+      beginnerWinsDisplay.textContent = `Beginner Wins: ${beginnerWins}`;
+      normalWinsDisplay.textContent = `Normal Wins: ${normalWins}`;
+      hardWinsDisplay.textContent = `Hard Wins: ${hardWins}`;
+      updateShopButtons();
+      alert("Progress has been reset.");
+    }
+  });
+
+  // Sound toggle
+  soundToggle.addEventListener("change", () => {
+    soundOn = soundToggle.checked;
+    saveSoundSetting();
+  });
+
+  // Play button starts game
+  playButton.addEventListener("click", () => {
+    currentDifficulty = document.querySelector('input[name="difficulty"]:checked').value;
+    homeScreen.style.display = "none";
+    canvas.style.display = "block";
+    controls.style.display = "block";
+    startGame(currentDifficulty);
+  });
+
+  // Sound effect function for paddle hit using Web Audio API
+  function playPaddleHitSound() {
+    if (!soundOn) return;
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = "square";
+      oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.1);
+    } catch (e) {
+      // Ignore errors in browsers without audio support
+    }
+  }
+
+  function startGame(difficulty) {
+    const paddleWidth = 10, paddleHeight = 100;
+    const player = { x: 0, y: canvas.height / 2 - paddleHeight / 2, score: 0 };
+    const ai = { x: canvas.width - paddleWidth, y: canvas.height / 2 - paddleHeight / 2, score: 0 };
+    const ball = { x: canvas.width / 2, y: canvas.height / 2, r: 10 };
+
+    let baseSpeedX = 5;
+    let baseSpeedY = 3;
+    if (difficulty === "hard") {
+      baseSpeedX *= 1.25;
+      baseSpeedY *= 1.25;
+    }
+
+    ball.speedX = baseSpeedX;
+    ball.speedY = baseSpeedY;
+
+    let moveUp = false;
+    let moveDown = false;
+
+    upBtn.addEventListener("mousedown", () => moveUp = true);
+    upBtn.addEventListener("mouseup", () => moveUp = false);
+    downBtn.addEventListener("mousedown", () => moveDown = true);
+    downBtn.addEventListener("mouseup", () => moveDown = false);
+
+    // For mobile touch
+    upBtn.addEventListener("touchstart", e => { e.preventDefault(); moveUp = true; });
+    upBtn.addEventListener("touchend", e => { e.preventDefault(); moveUp = false; });
+    downBtn.addEventListener("touchstart", e => { e.preventDefault(); moveDown = true; });
+    downBtn.addEventListener("touchend", e => { e.preventDefault(); moveDown = false; });
+
+    // Also allow mouse drag on paddle
+    canvas.addEventListener("mousemove", e => {
+      const rect = canvas.getBoundingClientRect();
+      player.y = e.clientY - rect.top - paddleHeight / 2;
+      if (player.y < 0) player.y = 0;
+      if (player.y + paddleHeight > canvas.height) player.y = canvas.height - paddleHeight;
+    });
+
+    function drawPaddle(x, y) {
+      ctx.fillStyle = "white";
+      ctx.fillRect(x, y, paddleWidth, paddleHeight);
+    }
+
+    function drawBall(x, y, ballColor) {
+      ctx.beginPath();
+      ctx.arc(x, y, ball.r, 0, Math.PI * 2);
+      ctx.fillStyle = ballColor;
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    function drawScore() {
+      ctx.font = "30px Arial";
+      ctx.fillStyle = "white";
+      ctx.fillText(player.score, 100, 50);
+      ctx.fillText(ai.score, canvas.width - 130, 50);
+    }
+
+    // Draw top and bottom blue boundaries to show paddle limits
+    function drawBoundaries() {
+      ctx.fillStyle = "blue";
+      ctx.fillRect(0, 0, canvas.width, 5); // top
+      ctx.fillRect(0, canvas.height - 5, canvas.width, 5); // bottom
+    }
+
+    function resetBall() {
+      ball.x = canvas.width / 2;
+      ball.y = canvas.height / 2;
+      ball.speedX = (Math.random() < 0.5 ? -1 : 1) * baseSpeedX;
+      ball.speedY = (Math.random() < 0.5 ? -1 : 1) * baseSpeedY;
+    }
+
+    resetBall();
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBoundaries();
+
+      // Move player paddle with arrows
+      if (moveUp) player.y -= 7;
+      if (moveDown) player.y += 7;
+
+      // Clamp player paddle position within screen
+      if (player.y < 0) player.y = 0;
+      if (player.y + paddleHeight > canvas.height) player.y = canvas.height - paddleHeight;
+
+      // Move ball
+      ball.x += ball.speedX;
+      ball.y += ball.speedY;
+
+      // Bounce off top and bottom
+      if (ball.y - ball.r < 5 || ball.y + ball.r > canvas.height - 5) {
+        ball.speedY *= -1;
+      }
+
+      // Player paddle collision
+      if (
+        ball.x - ball.r < player.x + paddleWidth &&
+        ball.y > player.y &&
+        ball.y < player.y + paddleHeight
+      ) {
+        ball.speedX = Math.abs(ball.speedX);
+
+        if (difficulty === "beginner") {
+          ball.speedX *= 1.1; // 10% faster when player hits
+          ball.speedY *= 1.1;
+        }
+
+        ball.x = player.x + paddleWidth + ball.r;
+        playPaddleHitSound();
+      }
+
+      // AI paddle collision
+      if (
+        ball.x + ball.r > ai.x &&
+        ball.y > ai.y &&
+        ball.y < ai.y + paddleHeight
+      ) {
+        ball.speedX = -Math.abs(ball.speedX);
+
+        if (difficulty === "beginner") {
+          // Reset to base speed when AI hits back
+          ball.speedX = -baseSpeedX;
+          ball.speedY = (ball.speedY > 0 ? 1 : -1) * baseSpeedY;
+        } else if (difficulty === "hard") {
+          ball.speedX = -baseSpeedX;
+          ball.speedY = (ball.speedY > 0 ? 1 : -1) * baseSpeedY;
+        }
+
+        ball.x = ai.x - ball.r;
+        playPaddleHitSound();
+      }
+
+      // Scoring
+      if (ball.x < 0) {
+        ai.score++;
+        resetBall();
+      }
+
+      if (ball.x > canvas.width) {
+        player.score++;
+        resetBall();
+      }
+
+      // AI movement
+      const aiCenter = ai.y + paddleHeight / 2;
+      const aiSpeed = difficulty === "beginner" ? 2 : (difficulty === "normal" ? 4 : 6);
+      if (aiCenter < ball.y - 20) ai.y += aiSpeed;
+      else if (aiCenter > ball.y + 20) ai.y -= aiSpeed;
+
+      // Clamp AI paddle position
+      if (ai.y < 0) ai.y = 0;
+      if (ai.y + paddleHeight > canvas.height) ai.y = canvas.height - paddleHeight;
+
+      // Draw paddles and ball
+      drawPaddle(player.x, player.y);
+      drawPaddle(ai.x, ai.y);
+
+      // Ball color based on selected ball
+      let ballColor = "white";
+      if (selectedBall === "red") ballColor = "red";
+      else if (selectedBall === "gold") ballColor = "gold";
+      else if (selectedBall === "monster") ballColor = "#39FF14";
+
+      drawBall(ball.x, ball.y, ballColor);
+      drawScore();
+
+      // Check for game end (score 5)
+      if (player.score >= 5 || ai.score >= 5) {
+        // Award coins & wins
+        if (player.score >= 5) {
+          if (difficulty === "beginner") {
+            beginnerWins++;
+            coins += 1;
+          } else if (difficulty === "normal") {
+            normalWins++;
+            coins += 3;
+          } else if (difficulty === "hard") {
+            hardWins++;
+            coins += 5;
+          }
+          alert("You won!");
+        } else {
+          alert("AI won!");
+        }
+        saveGameData();
+        updateCoinDisplays();
+
+        // Hide canvas & controls, show home screen
+        canvas.style.display = "none";
+        controls.style.display = "none";
+        homeScreen.style.display = "flex";
+        return; // stop loop
+      }
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  }
+</script>
+
+</body>
+</html>
