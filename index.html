@@ -600,7 +600,7 @@
 
       // AI movement
       const aiCenter = ai.y + paddleHeight / 2;
-      const aiSpeed = difficulty === "beginner" ? 2 : (difficulty === "normal" ? 4 : 6);
+      const aiSpeed = difficulty === "beginner" ? 3 : (difficulty === "normal" ? 4 : 6);
       if (aiCenter < ball.y - 20) ai.y += aiSpeed;
       else if (aiCenter > ball.y + 20) ai.y -= aiSpeed;
 
